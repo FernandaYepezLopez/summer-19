@@ -136,7 +136,6 @@ Double_t gpd(Double_t *x, Double_t *par) // Function which defines the total GPD
 	a = N * (1-ss/2) * pow(1-xx,3) * pow(1-ss,-2);
 	b = Integrate(gpdint,0,100,1000,x,par);
 	c = pow(ss,2) * pow((4 * (1-ss)),-1) * E;
-
 	h = a * (b + c);
 
 	//cout << "a = " << a << endl;
