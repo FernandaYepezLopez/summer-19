@@ -7,6 +7,8 @@
 // From root prompt i.e. root [0], use command,
 // .L gpd.C+   (this will rebuild the library in the root interpreter)
 // start()     (this calls our starting function, it can be named whatever, here it is start)
+// printgpd1D()  (this will print the gpd from 0 to 1 with xi,t defined in arguments
+// printgpd3D() (prints to .dat file gpd over all three variables)
 //////
 // Right now this function only evaluates H at a given point. Once I am sure that it can
 // do that correctly I wish to be able to save to an array and file lots of data points to be plotted.
