@@ -7,8 +7,6 @@
 // From root prompt i.e. root [0], use command,
 // .L gpd.C+   (this will rebuild the library in the root interpreter)
 // start()     (this calls our starting function, it can be named whatever, here it is start)
-// printgpd1D()  (this will print the gpd from 0 to 1 with xi,t defined in arguments
-// printgpd3D() (prints to .dat file gpd over all three variables)
 //////
 // Right now this function only evaluates H at a given point. Once I am sure that it can
 // do that correctly I wish to be able to save to an array and file lots of data points to be plotted.
@@ -266,7 +264,6 @@ void printgpd3D(Int_t n)
 	Double_t xl,xr,xil,xir,tl,tr,xx,xi,t;
 	Double_t stepx,stepxi,stept;
 	Double_t M = .938;
-	Double_t result[n];
 	Long_t count = 1;
 
 	xx = 0.001;
@@ -294,8 +291,7 @@ void printgpd3D(Int_t n)
 				x[1] = xi;
 				x[2] = t;
 				x[3] = 0;
-				result[i] = h(x,para);
-				file << xx << "\t" << xi << "\t" << t << "\t" << result[i] << endl;				
+				file << xx << "\t" << xi << "\t" << t << "\t" << h(x,para) << endl;				
 			xi += stepxi;
 			cout << count << endl;
 			count += 1;
@@ -310,4 +306,3 @@ void printgpd3D(Int_t n)
 	
 	file.close();
 }
-	
