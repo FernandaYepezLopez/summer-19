@@ -24,6 +24,7 @@
 #include <math.h>
 #include <fstream>
 
+
 Double_t Integrate(Double_t (*func)(Double_t *,Double_t *), Double_t from, Double_t to, Double_t n, Double_t *x, Double_t *par, Int_t r);// These are function declarations, the functions themselves are defined below.
 Double_t hint(Double_t *x, Double_t *par);											 // Function declarations tell the compiler, in this case the ROOT Cling interpreter
 Double_t exactint(Double_t *x, Double_t *par);	
@@ -31,11 +32,18 @@ Double_t eint(Double_t *x, Double_t *par);
 Double_t exact(Double_t *x, Double_t *par);									                 // what kinds of functions will be called, it tells them their names and what arguments
 Double_t h(Double_t *x, Double_t *par);											 // they accept. For example, hint() is passed two pointers, *x, and *par. When the function
 Double_t e(Double_t *x, Double_t *par);  											 // is called later, it will be given what should be passed along, namely two arrays, x, and para.
- 																 // which contain the variables and parameters.
+Double_t erbl(Double_t *x, Double_t *par);
+Double_t a(Double_t *x, Double_t *par);
+Double_t s(Double_t *x, Double_t *par);
+												 
 void start() // This is the main function.                                                                                
 {
-	//Double_t x[4] = {.5,0,0,0}; // Array containing variables, (X,Xi,t,k)
-	//Double_t para[3] = {0.367,0.583,0.963}; // Array containing parameters, (m,Mx,Mlambda)
+	Double_t x[4] = {0,0,0,0}; // Array containing variables, (X,Xi,t,k)
+	Double_t para[7] = {0.367,0.583,0.963,0.222,2.443,0.6649,1}; // Array containing parameters, (m,Mx,Mlambda)
+
+	para[6] = 2 * (para[6] / Integrate(h,.0001,.9999,100,x,para,0));
+
+	cout << Integrate(h,.0001,.9999,100,x,para,0) << endl;
 
 	return;
 }
@@ -161,11 +169,12 @@ Double_t exact(Double_t *x, Double_t *par)
 	Float_t xx = x[0];	
 	
 	Double_t N = 1.468;
+	Float_t norm = par[6];
 		
 	Double_t h;
 	Double_t Reg = pow(xx,-.222);
 
-	h = 4 * N * pow(1-xx,3) * Integrate(exactint,0,10,1000,x,par,3)*Reg;
+	h = norm * N * pow(1-xx,3) * Integrate(exactint,0,10,1000,x,par,3)*Reg;
 
 	return h;
 }
@@ -179,6 +188,7 @@ Double_t h(Double_t *x, Double_t *par) // Function which defines the total GPD H
 	Float_t alpha = par[3];
 	Float_t alphaprime = par[4]*pow((1-xx),par[5]);
 	Float_t beta = 10.0;	
+	Float_t norm = par[6];
 
 	Double_t N = 1.468;
 	Double_t E = e(x,par);
@@ -192,8 +202,8 @@ Double_t h(Double_t *x, Double_t *par) // Function which defines the total GPD H
 	b = Integrate(hint,0,10,1000,x,par,3);
 	c = pow(ss,2) * pow((4 * (1-ss)),-1) * E;
 
-	h = -4*((a*b) + c)*Reg;
-
+	h = -norm*((a*b) + c)*Reg;
+	
 	//cout << "a = " << a << endl;
 	//cout << "b = " << b << endl;	//These are just for testing, output the values of a,b,c to check.
 	//cout << "c = " << c << endl;
@@ -224,18 +234,106 @@ Double_t e(Double_t *x, Double_t *par)
 	return e;
 }
 
-void printgpd1D(Double_t xi, Double_t t, Int_t n)
+Double_t erbl(Double_t *x, Double_t *par)
+{
+	Float_t xx = x[0];
+	Float_t ss = x[1];
+	Float_t aa = a(x,par);
+	
+	Double_t y[4] = {x[1],x[1],x[2],x[3]}; 
+
+	Double_t erbl;
+	
+	erbl = aa*pow(xx,2) - aa*ss*xx + h(y,par);
+
+	return erbl;
+}
+
+Double_t a(Double_t *x, Double_t *par)
+{
+	Float_t ss = x[1];
+
+	Double_t y[4] = {x[1],x[1],x[2],x[3]}; 
+
+	Double_t a;
+	
+	a = (6*(ss*h(y,par)-2*s(x,par)))/(pow(ss,3));
+
+	return a;
+}
+
+Double_t s(Double_t *x, Double_t *par)
+{
+	Float_t ss = x[1];
+
+	Double_t s;
+
+	s = Integrate(h,.0001,ss,100,x,par,0);
+
+	return s;
+}
+
+void printerbl1D(Double_t xi, Double_t t, Int_t n)
 {
 	ofstream file;
-	file.open("output1D.dat");
+	file.open("outputerbl1D.dat");
 	Double_t x[4] = {0,0,0,0};
-	Double_t para[6] = {0.367,0.583,0.963,0.222,2.443,0.6649};
-
+	Double_t para[7] = {0.367,0.583,0.963,0.222,2.443,0.6649,1};
+	
 	Double_t xx,xl,xr;
+	Double_t M = .938;
+	Double_t xir = (pow((pow(t,2))-(4*pow(M,2)*t),.5))/(2*pow(M,2)) + ((t) / (2*pow(M,2)));
+	Int_t count = 1;
 
 	xx = 0.0;
 	xl = 0.0;
 	xr = 1.0;
+
+	if( xi > xir ){
+	cout << "Invalid choice of xi and t" << endl;
+	return;
+	}
+
+	Double_t stepx = (xir-xl)/n;
+
+	for(int i=0;i<=n;i++)
+	{
+		x[0] = xx;
+		x[1] = xi;
+		x[2] = t;
+		x[3] = 0;
+
+		if( xi > xx ){
+			file << xx << "\t" << xi << "\t" << t << "\t" << erbl(x,para) << endl;
+		}
+		cout << count << endl;
+		count += 1;
+		xx += stepx;
+	}
+	file.close();
+}
+
+void printh1D(Double_t xi, Double_t t, Int_t n)
+{
+	ofstream file;
+	file.open("outputh1D.dat");
+	Double_t x[4] = {0,0,0,0};
+	Double_t para[7] = {0.367,0.583,0.963,0.222,2.443,0.6649,1};
+
+	Double_t xx,xl,xr;
+	Double_t M = .938;
+	Double_t xir = (pow((pow(t,2))-(4*pow(M,2)*t),.5))/(2*pow(M,2)) + ((t) / (2*pow(M,2)));
+
+	xx = 0.0;
+	xl = 0.0;
+	xr = 1.0;
+
+	para[6] = 2 * (para[6] / Integrate(h,.0001,.9999,100,x,para,0)); // This makes Int of H(X,0,0) = 2
+
+	if( xi > xir ){
+	cout << "Invalid choice of xi and t" << endl;
+	return;
+	}
 
 	Double_t stepx = (xr-xl)/n;
 
@@ -246,29 +344,87 @@ void printgpd1D(Double_t xi, Double_t t, Int_t n)
 		x[2] = t;
 		x[3] = 0;
 
-		file << xx << "\t" << xi << "\t" << t << "\t" << h(x,para) << endl;
+		if( xi < xx ){
+			file << xx << "\t" << xi << "\t" << t << "\t" << h(x,para) << endl;
+		}
 
 		xx += stepx;
 	}
 	file.close();
 }
 
-
-void printgpd3D(Int_t n)
+void printh3D(Int_t n = 20)
 {
 	ofstream file;
-	file.open("output3D.dat");
-	Double_t x[4] = {.5,0,0,0};
-	Double_t para[6] = {0.367,0.583,0.963,0.222,2.443,0.6649};
+	file.open("outputh3D.dat");
+	Double_t x[4] = {0.0,0.0,0.0,0.0};
+	Double_t para[7] = {0.367,0.583,0.963,0.222,2.443,0.6649,1};
 	
-	Double_t xl,xr,xil,xir,tl,tr,xx,xi,t;
+	Double_t xl,xr,xil,xir,tl,tr;
 	Double_t stepx,stepxi,stept;
 	Double_t M = .938;
-	Long_t count = 1;
+	Double_t xx,xi,t;
 
-	xx = 0.001;
+	xx = 0.0001;
+	xi = 0.0001;
 	t = -2.0;
-	xi = 0.0;
+	xl = 0.0;
+	xr = 1.0;
+	tl = -2.0;
+	tr = 0.0;
+	xil = 0.0;
+	xir = 1.0;
+
+	para[6] = 2 * (para[6] / Integrate(h,.0001,.9999,100,x,para,0));
+
+	stepx = (xr-xl)/n;
+	stept = (tr-tl)/n;
+
+	while(xx <= xr)
+	{
+		while(t <= tr)
+		{
+			xir = (pow((pow(t,2))-(4*pow(M,2)*t),.5))/(2*pow(M,2)) + ((t) / (2*pow(M,2)));
+			stepxi = (xir-xi)/n;
+			while(xi <= xir)
+			{	
+				x[0] = xx;
+				x[1] = xi;
+				x[2] = t;
+				x[3] = 0;
+				if(xi <= xx)
+				{
+					file << xx << "\t" << xi << "\t" << t << "\t" << h(x,para) << endl;
+				}				
+			xi += stepxi;
+			}
+			xi=0;
+			t += stept;
+		}
+		t=-2.0;
+		xx += stepx;
+	}
+	xx=0;
+	
+	file.close();
+}
+
+void printerbl3D(Int_t n = 20)
+{
+	ofstream file;
+	file.open("outputerbl3D.dat");
+	Double_t x[4] = {0.0,0.0,0.0,0.0};
+	Double_t para[7] = {0.367,0.583,0.963,0.222,2.443,0.6649,1};
+	
+	Double_t xl,xr,xil,xir,tl,tr;
+	Double_t stepx,stepxi,stept;
+	Double_t M = .938;
+	Double_t xx,xi,t;
+	Int_t count = 1;
+
+	xx = 0.0001;
+	xi = 0.0001;
+	t = -2.0;
 	xl = 0.0;
 	xr = 1.0;
 	tl = -2.0;
@@ -279,19 +435,22 @@ void printgpd3D(Int_t n)
 	stepx = (xr-xl)/n;
 	stept = (tr-tl)/n;
 
-	for(int i=0;i<=n;i++)
+	while(xx <= xr)
 	{
-		for(int i=0;i<=n;i++)
+		while(t <= tr)
 		{
 			xir = (pow((pow(t,2))-(4*pow(M,2)*t),.5))/(2*pow(M,2)) + ((t) / (2*pow(M,2)));
 			stepxi = (xir-xi)/n;
-			while(xi <= xir && xi <= xx)
+			while(xi <= xir)
 			{	
 				x[0] = xx;
 				x[1] = xi;
 				x[2] = t;
 				x[3] = 0;
-				file << xx << "\t" << xi << "\t" << t << "\t" << h(x,para) << endl;				
+				if(xi >= xx)
+				{
+					file << xx << "\t" << xi << "\t" << t << "\t" << erbl(x,para) << endl;	
+				}			
 			xi += stepxi;
 			cout << count << endl;
 			count += 1;
